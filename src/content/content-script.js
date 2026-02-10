@@ -271,7 +271,8 @@ class ChordSenseOverlay {
     this.clearLoop();
     // Reset speed to 1x
     this.setSpeed(1.0);
-    // Reset transpose
+    // Reset transpose and disconnect pitch shift graph
+    this.disconnectPitchShift();
     this.setTranspose(0);
     this.overlay.querySelectorAll('.cs-speed-presets button').forEach(b => b.classList.remove('active'));
     this.overlay.querySelector('.cs-speed-presets button[data-speed="1"]')?.classList.add('active');
@@ -309,23 +310,16 @@ class ChordSenseOverlay {
     this.overlay.querySelector('.cs-speed-value').textContent = `${speed.toFixed(2)}x`;
     this.overlay.querySelector('.cs-speed-slider').value = speed;
     
-    if (this.transposeSemitones !== 0) {
-      // When transpose is active, update the combined rate
-      const media = this.getActiveMedia();
-      if (media) {
-        const pitchRatio = Math.pow(2, this.transposeSemitones / 12);
-        media.playbackRate = speed * pitchRatio;
-      }
-    } else {
-      this.mediaElements.forEach(media => {
-        media.preservesPitch = true;
-        media.playbackRate = speed;
-      });
-      const ytVideo = document.querySelector('video.html5-main-video');
-      if (ytVideo) {
-        ytVideo.preservesPitch = true;
-        ytVideo.playbackRate = speed;
-      }
+    // Speed is always controlled via playbackRate with preservesPitch = true
+    // Pitch shifting is handled separately by the AudioWorklet
+    this.mediaElements.forEach(media => {
+      media.preservesPitch = true;
+      media.playbackRate = speed;
+    });
+    const ytVideo = document.querySelector('video.html5-main-video');
+    if (ytVideo) {
+      ytVideo.preservesPitch = true;
+      ytVideo.playbackRate = speed;
     }
   }
 
@@ -344,46 +338,82 @@ class ChordSenseOverlay {
       btn.classList.toggle('active', parseInt(btn.dataset.semitones) === semitones);
     });
     
-    // Apply pitch shift to all media elements
+    // Apply pitch shift via AudioWorklet (independent of speed)
     const media = this.getActiveMedia();
     if (media) {
       this.applyPitchShift(media, semitones);
     }
   }
 
-  applyPitchShift(media, semitones) {
+  async applyPitchShift(media, semitones) {
     if (semitones === 0) {
-      // Reset: restore normal playback
+      // Reset: disconnect the pitch shift graph, restore direct output
+      this.disconnectPitchShift();
       media.preservesPitch = true;
       media.playbackRate = this.currentSpeed;
-      // Disconnect pitch shift audio graph if active
-      if (this.pitchSourceNode) {
-        this.pitchSourceNode.disconnect();
-        this.pitchSourceNode = null;
-      }
-      if (this.pitchAudioContext) {
-        this.pitchAudioContext.close();
-        this.pitchAudioContext = null;
-      }
       return;
     }
 
-    // Pitch shift using preservesPitch = false strategy:
-    // 1. Set preservesPitch to false so playbackRate changes pitch
-    // 2. Calculate the rate ratio needed for the semitone shift
-    // 3. Combine with the user's desired speed
-    const pitchRatio = Math.pow(2, semitones / 12);
-    
-    // We need to adjust playbackRate to shift pitch, but also maintain the desired speed.
-    // With preservesPitch=false: rate affects both speed and pitch equally.
-    // To shift pitch by `pitchRatio` while keeping effective speed at `currentSpeed`:
-    // We set playbackRate = currentSpeed * pitchRatio, then use AudioContext to time-stretch.
-    // However, time-stretching in real-time is complex.
-    //
-    // Simple approach: directly shift pitch (speed changes proportionally).
-    // This is the standard behavior in most music practice apps.
-    media.preservesPitch = false;
-    media.playbackRate = this.currentSpeed * pitchRatio;
+    const pitchFactor = Math.pow(2, semitones / 12);
+
+    // If pitch graph already set up for this media, just update the parameter
+    if (this.pitchShifterNode && this.pitchSourceMedia === media) {
+      this.pitchShifterNode.parameters.get('pitchFactor').setValueAtTime(
+        pitchFactor, this.pitchAudioContext.currentTime
+      );
+      return;
+    }
+
+    // Disconnect any previous pitch graph
+    this.disconnectPitchShift();
+
+    try {
+      // Create AudioContext and route media through pitch shifter
+      this.pitchAudioContext = new AudioContext();
+      
+      // Load the pitch shifter worklet
+      const workletUrl = chrome.runtime.getURL('src/audio/pitch-shifter-worklet.js');
+      await this.pitchAudioContext.audioWorklet.addModule(workletUrl);
+
+      // Create source from media element
+      this.pitchSourceNode = this.pitchAudioContext.createMediaElementSource(media);
+      this.pitchSourceMedia = media;
+
+      // Create pitch shifter node
+      this.pitchShifterNode = new AudioWorkletNode(
+        this.pitchAudioContext, 'pitch-shifter-processor'
+      );
+      this.pitchShifterNode.parameters.get('pitchFactor').setValueAtTime(
+        pitchFactor, this.pitchAudioContext.currentTime
+      );
+
+      // Connect: media → pitch shifter → speakers
+      this.pitchSourceNode.connect(this.pitchShifterNode);
+      this.pitchShifterNode.connect(this.pitchAudioContext.destination);
+
+      // Keep playbackRate controlling speed only (preservesPitch stays true)
+      media.preservesPitch = true;
+      media.playbackRate = this.currentSpeed;
+    } catch (err) {
+      console.warn('PracticePal: Failed to set up pitch shifter', err);
+      this.disconnectPitchShift();
+    }
+  }
+
+  disconnectPitchShift() {
+    if (this.pitchShifterNode) {
+      this.pitchShifterNode.disconnect();
+      this.pitchShifterNode = null;
+    }
+    if (this.pitchSourceNode) {
+      this.pitchSourceNode.disconnect();
+      this.pitchSourceNode = null;
+    }
+    if (this.pitchAudioContext) {
+      this.pitchAudioContext.close().catch(() => {});
+      this.pitchAudioContext = null;
+    }
+    this.pitchSourceMedia = null;
   }
 
   setLoopStart() {
