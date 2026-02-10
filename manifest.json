@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "PracticePal - Music Practice Tools",
+  "version": "1.0.0",
+  "description": "Slow down music, loop sections, and practice songs at your own pace. Perfect for musicians learning by ear!",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabCapture",
+    "offscreen",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "src/icons/icon16.png",
+      "48": "src/icons/icon48.png",
+      "128": "src/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "src/icons/icon16.png",
+    "48": "src/icons/icon48.png",
+    "128": "src/icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/content-script.js"],
+      "css": ["src/styles/content.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/audio/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
