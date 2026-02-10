@@ -1,0 +1,89 @@
+#chordsense-overlay {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+}
+
+#chordsense-overlay.cs-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.cs-container {
+  width: 280px;
+  background: linear-gradient(145deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.cs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: grab;
+  user-select: none;
+}
+
+.cs-logo { font-size: 14px; font-weight: 600; color: #fff; }
+.cs-header-actions { display: flex; gap: 8px; align-items: center; }
+.cs-restart { background: none; border: none; color: #888; font-size: 16px; cursor: pointer; padding: 4px; transition: all 0.2s; }
+.cs-restart:hover { color: #4CAF50; transform: rotate(180deg); }
+.cs-close { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
+.cs-close:hover { color: #ff4444; }
+
+.cs-chord-display { padding: 12px 16px; text-align: center; }
+.cs-current-chord { display: flex; justify-content: center; align-items: baseline; gap: 4px; margin-bottom: 8px; }
+.cs-chord-name { font-size: 28px; font-weight: 600; color: #4CAF50; }
+.cs-chord-type { font-size: 14px; color: #888; }
+.cs-chord-diagram { display: flex; justify-content: center; align-items: center; margin: 8px 0; min-height: 84px; }
+.cs-chord-svg { width: 70px; height: 84px; }
+.cs-no-diagram { color: #666; font-size: 11px; }
+.cs-confidence { height: 3px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden; }
+.cs-confidence-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #4CAF50, #2196F3); transition: width 0.2s; }
+
+.cs-controls { padding: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.cs-speed-control { margin-bottom: 12px; }
+.cs-speed-control label { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 8px; }
+.cs-speed-value { color: #4CAF50; font-weight: 600; }
+.cs-speed-slider { width: 100%; height: 6px; -webkit-appearance: none; background: rgba(255, 255, 255, 0.1); border-radius: 3px; margin-bottom: 8px; }
+.cs-speed-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #4CAF50; cursor: pointer; }
+.cs-speed-presets { display: flex; gap: 4px; }
+.cs-speed-presets button { flex: 1; padding: 6px 4px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; color: #888; font-size: 11px; cursor: pointer; }
+.cs-speed-presets button:hover { background: rgba(76, 175, 80, 0.2); border-color: #4CAF50; color: #fff; }
+.cs-speed-presets button.active { background: #4CAF50; border-color: #4CAF50; color: #fff; }
+
+.cs-loop-control { display: flex; gap: 8px; }
+.cs-loop-control button { flex: 1; padding: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #888; font-size: 12px; font-weight: 600; cursor: pointer; }
+.cs-loop-control button:hover { background: rgba(33, 150, 243, 0.2); border-color: #2196F3; color: #fff; }
+.cs-loop-control button.active { background: #2196F3; border-color: #2196F3; color: #fff; }
+
+/* Metronome */
+.cs-metronome-control { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.cs-metronome-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.cs-metronome-label { font-size: 12px; color: #888; }
+.cs-bpm-display { font-size: 12px; color: #FF9800; font-weight: 600; }
+.cs-metronome-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+.cs-bpm-down, .cs-bpm-up { width: 32px; height: 32px; padding: 0; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #888; font-size: 16px; cursor: pointer; }
+.cs-bpm-down:hover, .cs-bpm-up:hover { background: rgba(255, 152, 0, 0.2); border-color: #FF9800; color: #fff; }
+.cs-bpm-input { flex: 1; height: 32px; padding: 0 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #fff; font-size: 14px; text-align: center; }
+.cs-bpm-input:focus { outline: none; border-color: #FF9800; }
+.cs-metronome-toggle { width: 40px; height: 32px; padding: 0; background: rgba(255, 152, 0, 0.2); border: 1px solid #FF9800; border-radius: 6px; color: #FF9800; font-size: 12px; cursor: pointer; }
+.cs-metronome-toggle:hover { background: rgba(255, 152, 0, 0.3); }
+.cs-metronome-toggle.active { background: #FF9800; color: #fff; }
+.cs-metronome-actions { display: flex; gap: 6px; }
+.cs-metronome-actions button { flex: 1; padding: 6px 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #888; font-size: 11px; cursor: pointer; }
+.cs-metronome-actions button:hover { background: rgba(255, 152, 0, 0.2); border-color: #FF9800; color: #fff; }
+.cs-metronome-actions button.active { background: #FF9800; border-color: #FF9800; color: #fff; }
+
+

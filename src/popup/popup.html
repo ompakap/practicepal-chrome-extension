@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PracticePal</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">🎵</span>
+        <span class="logo-text">PracticePal</span>
+      </div>
+    </header>
+
+    <section class="speed-section">
+      <div class="section-header">
+        <span class="section-title">Playback Speed</span>
+        <span class="speed-value" id="speedValue">1.0x</span>
+      </div>
+      <input type="range" class="speed-slider" id="speedSlider" min="0.25" max="2" step="0.05" value="1">
+      <div class="speed-presets">
+        <button class="preset-btn" data-speed="0.5">0.5x</button>
+        <button class="preset-btn" data-speed="0.75">0.75x</button>
+        <button class="preset-btn active" data-speed="1">1x</button>
+        <button class="preset-btn" data-speed="1.25">1.25x</button>
+        <button class="preset-btn" data-speed="1.5">1.5x</button>
+      </div>
+    </section>
+
+    <section class="loop-section">
+      <div class="section-header">
+        <span class="section-title">A-B Loop</span>
+        <span class="loop-time" id="loopTime">--:-- - --:--</span>
+      </div>
+      <div class="loop-controls">
+        <button class="btn btn-loop" id="loopStartBtn">
+          <span>A</span>
+        </button>
+        <button class="btn btn-loop" id="loopEndBtn">
+          <span>B</span>
+        </button>
+        <button class="btn btn-loop-clear" id="loopClearBtn">
+          <span>✕</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="metronome-section">
+      <div class="section-header">
+        <span class="section-title">Metronome</span>
+        <span class="bpm-display" id="bpmDisplay">-- BPM</span>
+      </div>
+      <div class="metronome-controls">
+        <button class="btn btn-bpm" id="bpmDownBtn">−</button>
+        <input type="number" class="bpm-input" id="bpmInput" min="30" max="300" value="120">
+        <button class="btn btn-bpm" id="bpmUpBtn">+</button>
+        <button class="btn btn-metronome-toggle" id="metronomeToggle">
+          <span class="btn-icon">▶</span>
+        </button>
+      </div>
+      <div class="metronome-actions">
+        <button class="btn btn-detect" id="detectBpmBtn">🎯 Detect BPM</button>
+        <button class="btn btn-tap" id="tapTempoBtn">👆 Tap</button>
+      </div>
+    </section>
+
+    <section class="chord-section">
+      <div class="section-header">
+        <span class="section-title">Chord Detection</span>
+        <span class="chord-badge" id="chordBadge">Beta</span>
+      </div>
+      <div class="chord-row">
+        <div class="current-chord" id="currentChord">
+          <span class="chord-root">-</span>
+          <span class="chord-type"></span>
+        </div>
+        <button class="btn btn-chord-toggle" id="toggleDetection">
+          <span class="btn-icon">▶</span>
+        </button>
+      </div>
+      <div class="confidence-meter">
+        <div class="confidence-fill" id="confidenceFill"></div>
+      </div>
+    </section>
+
+    <section class="overlay-section">
+      <button class="btn btn-secondary btn-full" id="showOverlay">
+        <span class="btn-icon">🎯</span>
+        <span class="btn-text">Show Floating Overlay</span>
+      </button>
+    </section>
+
+    <section class="donate-section">
+      <div class="donate-message">Enjoy PracticePal? Support development!</div>
+      <button class="btn btn-donate" id="donateBtn">
+        <span class="btn-icon">🍺</span>
+        <span>Buy Me a Beer</span>
+      </button>
+    </section>
+
+    <footer class="footer">
+      <a href="#" class="footer-link" id="helpLink">Help</a>
+      <a href="#" class="footer-link" id="feedbackLink">Feedback</a>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
