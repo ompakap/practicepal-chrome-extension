@@ -135,7 +135,18 @@ async function stopCapture() {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'START_DETECTION':
-      startCapture(message.tabId).then(sendResponse);
+      const startTabId = message.tabId || sender.tab?.id;
+      if (startTabId) {
+        startCapture(startTabId).then(sendResponse);
+      } else {
+        chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+          if (tab?.id) {
+            startCapture(tab.id).then(sendResponse);
+          } else {
+            sendResponse({ success: false, error: 'No tab ID' });
+          }
+        });
+      }
       return true;
       
     case 'STOP_DETECTION':

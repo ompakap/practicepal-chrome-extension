@@ -42,14 +42,21 @@
 .cs-close { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
 .cs-close:hover { color: #ff4444; }
 
-.cs-chord-display { padding: 12px 16px; text-align: center; }
-.cs-current-chord { display: flex; justify-content: center; align-items: baseline; gap: 4px; margin-bottom: 8px; }
-.cs-chord-name { font-size: 28px; font-weight: 600; color: #4CAF50; }
-.cs-chord-type { font-size: 14px; color: #888; }
-.cs-chord-diagram { display: flex; justify-content: center; align-items: center; margin: 8px 0; min-height: 84px; }
-.cs-chord-svg { width: 70px; height: 84px; }
-.cs-no-diagram { color: #666; font-size: 11px; }
-.cs-confidence { height: 3px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden; }
+/* Chord detection — compact section at bottom */
+.cs-chord-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.cs-chord-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.cs-chord-right { display: flex; align-items: center; gap: 8px; }
+.cs-chord-toggle { width: 28px; height: 28px; padding: 0; background: rgba(76, 175, 80, 0.15); border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 50%; color: #4CAF50; font-size: 12px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+.cs-chord-toggle:hover { background: rgba(76, 175, 80, 0.3); }
+.cs-chord-toggle.active { background: #f44336; border-color: #f44336; color: #fff; }
+.cs-chord-label { font-size: 12px; color: #888; }
+.cs-current-chord { display: flex; align-items: baseline; gap: 2px; }
+.cs-chord-name { font-size: 20px; font-weight: 700; color: #4CAF50; }
+.cs-chord-type { font-size: 12px; color: #888; }
+.cs-chord-diagram { display: flex; justify-content: center; align-items: center; margin: 4px 0; min-height: 70px; }
+.cs-chord-svg { width: 60px; height: 72px; }
+.cs-no-diagram { color: #666; font-size: 10px; }
+.cs-confidence { height: 2px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden; }
 .cs-confidence-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #4CAF50, #2196F3); transition: width 0.2s; }
 
 .cs-controls { padding: 16px; border-top: 1px solid rgba(255, 255, 255, 0.05); }

@@ -20,6 +20,7 @@ class ChordSenseOverlay {
     this.isLooping = false;
     this.currentUrl = window.location.href;
     this.transposeSemitones = 0;
+    this.isDetecting = false;
     
     // Pitch shift state
     this.pitchAudioContext = null;
@@ -52,17 +53,6 @@ class ChordSenseOverlay {
           <div class="cs-header-actions">
             <button class="cs-restart" title="Restart Detection">🔄</button>
             <button class="cs-close" title="Close">×</button>
-          </div>
-        </div>
-        
-        <div class="cs-chord-display">
-          <div class="cs-current-chord">
-            <span class="cs-chord-name">-</span>
-            <span class="cs-chord-type"></span>
-          </div>
-          <div class="cs-chord-diagram"></div>
-          <div class="cs-confidence">
-            <div class="cs-confidence-bar"></div>
           </div>
         </div>
         
@@ -118,6 +108,23 @@ class ChordSenseOverlay {
               <button class="cs-tap-tempo" title="Tap to set tempo">👆 Tap</button>
             </div>
           </div>
+          
+          <div class="cs-chord-section">
+            <div class="cs-chord-header">
+              <span class="cs-chord-label">Chord</span>
+              <div class="cs-chord-right">
+                <div class="cs-current-chord">
+                  <span class="cs-chord-name">-</span>
+                  <span class="cs-chord-type"></span>
+                </div>
+                <button class="cs-chord-toggle" title="Start/Stop Chord Detection">▶</button>
+              </div>
+            </div>
+            <div class="cs-chord-diagram"></div>
+            <div class="cs-confidence">
+              <div class="cs-confidence-bar"></div>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -129,6 +136,7 @@ class ChordSenseOverlay {
   setupOverlayEvents() {
     this.overlay.querySelector('.cs-close').addEventListener('click', () => this.hide());
     this.overlay.querySelector('.cs-restart').addEventListener('click', () => this.restartDetection());
+    this.overlay.querySelector('.cs-chord-toggle').addEventListener('click', () => this.toggleChordDetection());
 
     const speedSlider = this.overlay.querySelector('.cs-speed-slider');
     speedSlider.addEventListener('input', (e) => this.setSpeed(parseFloat(e.target.value)));
@@ -287,12 +295,58 @@ class ChordSenseOverlay {
     }
   }
 
-  restartDetection() {
-    console.log('ChordSense: Restarting detection...');
-    // Show restarting indicator
+  toggleChordDetection() {
+    if (this.isDetecting) {
+      this.stopChordDetection();
+    } else {
+      this.startChordDetection();
+    }
+  }
+
+  startChordDetection() {
     this.overlay.querySelector('.cs-chord-name').textContent = '...';
     this.overlay.querySelector('.cs-chord-type').textContent = '';
-    // Request restart from popup/service worker
+    chrome.runtime.sendMessage({ type: 'START_DETECTION' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn('Start detection failed:', chrome.runtime.lastError.message);
+        this.overlay.querySelector('.cs-chord-name').textContent = '!';
+        this.overlay.querySelector('.cs-chord-type').textContent = 'Error';
+        return;
+      }
+      if (response?.success) {
+        this.isDetecting = true;
+        this.updateChordToggleButton();
+      }
+    });
+  }
+
+  stopChordDetection() {
+    chrome.runtime.sendMessage({ type: 'STOP_DETECTION' }, () => {
+      this.isDetecting = false;
+      this.updateChordToggleButton();
+      this.overlay.querySelector('.cs-chord-name').textContent = '-';
+      this.overlay.querySelector('.cs-chord-type').textContent = '';
+      this.overlay.querySelector('.cs-confidence-bar').style.width = '0%';
+      const diagram = this.overlay.querySelector('.cs-chord-diagram');
+      if (diagram) diagram.innerHTML = '';
+    });
+  }
+
+  updateChordToggleButton() {
+    const btn = this.overlay.querySelector('.cs-chord-toggle');
+    if (this.isDetecting) {
+      btn.textContent = '⏹';
+      btn.classList.add('active');
+    } else {
+      btn.textContent = '▶';
+      btn.classList.remove('active');
+    }
+  }
+
+  restartDetection() {
+    console.log('ChordSense: Restarting detection...');
+    this.overlay.querySelector('.cs-chord-name').textContent = '...';
+    this.overlay.querySelector('.cs-chord-type').textContent = '';
     chrome.runtime.sendMessage({ type: 'RESTART_DETECTION' }, (response) => {
       if (chrome.runtime.lastError) {
         console.warn('Restart failed:', chrome.runtime.lastError.message);
@@ -300,6 +354,8 @@ class ChordSenseOverlay {
         this.overlay.querySelector('.cs-chord-type').textContent = 'Click restart';
       } else if (response?.success) {
         console.log('Detection restarted');
+        this.isDetecting = true;
+        this.updateChordToggleButton();
       }
     });
   }
