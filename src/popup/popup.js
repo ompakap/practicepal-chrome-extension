@@ -113,6 +113,11 @@ class ChordSensePopup {
       e.preventDefault();
       chrome.tabs.create({ url: 'https://github.com/ompakap/practicepal-chrome-extension/issues' });
     });
+
+    document.getElementById('feedbackLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: 'https://chromewebstore.google.com/detail/practicepal/hklaflknikobmoaibaifaidbbfmhmogm/reviews' });
+    });
   }
 
   setupMessageListener() {
