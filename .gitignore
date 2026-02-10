@@ -13,3 +13,7 @@ node_modules/
 
 # Build
 *.zip
+dist/
+
+# Release
+release-notes.md

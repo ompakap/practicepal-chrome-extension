@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build release zip
+        run: |
+          zip -r practicepal-v${{ steps.version.outputs.VERSION }}.zip \
+            manifest.json \
+            src/ \
+            -x "*.DS_Store" \
+            -x "*__MACOSX*" \
+            -x "src/audio/tf-chord-processor.js" \
+            -x "src/lib/*"
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            CHANGES=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s" --no-merges | grep -v "^- release:")
+          else
+            CHANGES=$(git log --pretty=format:"- %s" --no-merges | grep -v "^- release:")
+          fi
+          
+          cat << EOF > release-notes.md
+          ## PracticePal v${{ steps.version.outputs.VERSION }}
+
+          ### Changes
+          $CHANGES
+
+          ### Installation
+          1. Download \`practicepal-v${{ steps.version.outputs.VERSION }}.zip\` below
+          2. Open \`chrome://extensions/\` in Chrome
+          3. Enable **Developer mode**
+          4. Drag and drop the zip file, or click **Load unpacked** after extracting
+
+          ---
+          _Built from commit $(git rev-parse --short HEAD)_
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PracticePal v${{ steps.version.outputs.VERSION }}
+          body_path: release-notes.md
+          files: practicepal-v${{ steps.version.outputs.VERSION }}.zip
+          draft: false
+          prerelease: false
