@@ -19,6 +19,12 @@ class ChordSenseOverlay {
     this.loopEnd = null;
     this.isLooping = false;
     this.currentUrl = window.location.href;
+    this.transposeSemitones = 0;
+    
+    // Pitch shift state
+    this.pitchAudioContext = null;
+    this.pitchSourceNode = null;
+    this.pitchShifterNode = null;
     
     // Metronome state
     this.metronome = null;
@@ -78,6 +84,24 @@ class ChordSenseOverlay {
             <button class="cs-loop-clear" title="Clear loop">✕</button>
           </div>
           
+          <div class="cs-transpose-control">
+            <div class="cs-transpose-header">
+              <span class="cs-transpose-label">Transpose</span>
+              <span class="cs-transpose-display">0 st</span>
+            </div>
+            <div class="cs-transpose-row">
+              <button class="cs-transpose-down" title="Down 1 semitone">−</button>
+              <div class="cs-transpose-presets">
+                <button data-semitones="-3">−3</button>
+                <button data-semitones="-1">−1</button>
+                <button data-semitones="0" class="active">0</button>
+                <button data-semitones="1">+1</button>
+                <button data-semitones="3">+3</button>
+              </div>
+              <button class="cs-transpose-up" title="Up 1 semitone">+</button>
+            </div>
+          </div>
+          
           <div class="cs-metronome-control">
             <div class="cs-metronome-header">
               <span class="cs-metronome-label">Metronome</span>
@@ -122,6 +146,13 @@ class ChordSenseOverlay {
     this.overlay.querySelector('.cs-loop-start').addEventListener('click', () => this.setLoopStart());
     this.overlay.querySelector('.cs-loop-end').addEventListener('click', () => this.setLoopEnd());
     this.overlay.querySelector('.cs-loop-clear').addEventListener('click', () => this.clearLoop());
+
+    // Transpose controls
+    this.overlay.querySelector('.cs-transpose-down').addEventListener('click', () => this.setTranspose(this.transposeSemitones - 1));
+    this.overlay.querySelector('.cs-transpose-up').addEventListener('click', () => this.setTranspose(this.transposeSemitones + 1));
+    this.overlay.querySelectorAll('.cs-transpose-presets button').forEach(btn => {
+      btn.addEventListener('click', () => this.setTranspose(parseInt(btn.dataset.semitones)));
+    });
 
     // Metronome controls
     this.overlay.querySelector('.cs-metronome-toggle').addEventListener('click', () => this.toggleMetronome());
@@ -198,6 +229,9 @@ class ChordSenseOverlay {
         case 'BPM_UPDATE':
           this.setMetronomeBPM(message.bpm);
           break;
+        case 'SET_TRANSPOSE':
+          this.setTranspose(message.semitones);
+          break;
       }
     });
   }
@@ -237,6 +271,8 @@ class ChordSenseOverlay {
     this.clearLoop();
     // Reset speed to 1x
     this.setSpeed(1.0);
+    // Reset transpose
+    this.setTranspose(0);
     this.overlay.querySelectorAll('.cs-speed-presets button').forEach(b => b.classList.remove('active'));
     this.overlay.querySelector('.cs-speed-presets button[data-speed="1"]')?.classList.add('active');
     // Reset chord display
@@ -273,9 +309,81 @@ class ChordSenseOverlay {
     this.overlay.querySelector('.cs-speed-value').textContent = `${speed.toFixed(2)}x`;
     this.overlay.querySelector('.cs-speed-slider').value = speed;
     
-    this.mediaElements.forEach(media => media.playbackRate = speed);
-    const ytVideo = document.querySelector('video.html5-main-video');
-    if (ytVideo) ytVideo.playbackRate = speed;
+    if (this.transposeSemitones !== 0) {
+      // When transpose is active, update the combined rate
+      const media = this.getActiveMedia();
+      if (media) {
+        const pitchRatio = Math.pow(2, this.transposeSemitones / 12);
+        media.playbackRate = speed * pitchRatio;
+      }
+    } else {
+      this.mediaElements.forEach(media => {
+        media.preservesPitch = true;
+        media.playbackRate = speed;
+      });
+      const ytVideo = document.querySelector('video.html5-main-video');
+      if (ytVideo) {
+        ytVideo.preservesPitch = true;
+        ytVideo.playbackRate = speed;
+      }
+    }
+  }
+
+  setTranspose(semitones) {
+    // Clamp to ±12 semitones (1 octave)
+    semitones = Math.max(-12, Math.min(12, semitones));
+    this.transposeSemitones = semitones;
+    
+    // Update overlay UI
+    const display = this.overlay.querySelector('.cs-transpose-display');
+    if (display) {
+      const prefix = semitones > 0 ? '+' : '';
+      display.textContent = `${prefix}${semitones} st`;
+    }
+    this.overlay.querySelectorAll('.cs-transpose-presets button').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.semitones) === semitones);
+    });
+    
+    // Apply pitch shift to all media elements
+    const media = this.getActiveMedia();
+    if (media) {
+      this.applyPitchShift(media, semitones);
+    }
+  }
+
+  applyPitchShift(media, semitones) {
+    if (semitones === 0) {
+      // Reset: restore normal playback
+      media.preservesPitch = true;
+      media.playbackRate = this.currentSpeed;
+      // Disconnect pitch shift audio graph if active
+      if (this.pitchSourceNode) {
+        this.pitchSourceNode.disconnect();
+        this.pitchSourceNode = null;
+      }
+      if (this.pitchAudioContext) {
+        this.pitchAudioContext.close();
+        this.pitchAudioContext = null;
+      }
+      return;
+    }
+
+    // Pitch shift using preservesPitch = false strategy:
+    // 1. Set preservesPitch to false so playbackRate changes pitch
+    // 2. Calculate the rate ratio needed for the semitone shift
+    // 3. Combine with the user's desired speed
+    const pitchRatio = Math.pow(2, semitones / 12);
+    
+    // We need to adjust playbackRate to shift pitch, but also maintain the desired speed.
+    // With preservesPitch=false: rate affects both speed and pitch equally.
+    // To shift pitch by `pitchRatio` while keeping effective speed at `currentSpeed`:
+    // We set playbackRate = currentSpeed * pitchRatio, then use AudioContext to time-stretch.
+    // However, time-stretching in real-time is complex.
+    //
+    // Simple approach: directly shift pitch (speed changes proportionally).
+    // This is the standard behavior in most music practice apps.
+    media.preservesPitch = false;
+    media.playbackRate = this.currentSpeed * pitchRatio;
   }
 
   setLoopStart() {

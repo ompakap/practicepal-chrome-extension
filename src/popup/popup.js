@@ -7,6 +7,9 @@ class ChordSensePopup {
     this.loopStart = null;
     this.loopEnd = null;
     
+    // Transpose state
+    this.transposeSemitones = 0;
+    
     // Metronome state
     this.audioContext = null;
     this.isMetronomePlaying = false;
@@ -97,6 +100,14 @@ class ChordSensePopup {
     document.getElementById('bpmDownBtn').addEventListener('click', () => this.adjustBPM(-5));
     document.getElementById('detectBpmBtn').addEventListener('click', () => this.detectBPM());
     document.getElementById('tapTempoBtn').addEventListener('click', () => this.tapTempo());
+    
+    // Transpose controls
+    document.getElementById('transposeUpBtn').addEventListener('click', () => this.setTranspose(this.transposeSemitones + 1));
+    document.getElementById('transposeDownBtn').addEventListener('click', () => this.setTranspose(this.transposeSemitones - 1));
+    document.getElementById('transposeResetBtn').addEventListener('click', () => this.setTranspose(0));
+    document.querySelectorAll('.transpose-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.setTranspose(parseInt(btn.dataset.semitones)));
+    });
     
     document.getElementById('helpLink').addEventListener('click', (e) => {
       e.preventDefault();
@@ -204,6 +215,28 @@ class ChordSensePopup {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab && tab.id) {
       chrome.tabs.sendMessage(tab.id, { type: 'SET_SPEED', speed }, () => void chrome.runtime.lastError);
+    }
+  }
+
+  async setTranspose(semitones) {
+    semitones = Math.max(-12, Math.min(12, semitones));
+    this.transposeSemitones = semitones;
+    
+    // Update UI
+    const prefix = semitones > 0 ? '+' : '';
+    document.getElementById('transposeValue').textContent = `${prefix}${semitones}`;
+    document.getElementById('transposeSemitones').textContent = `${prefix}${semitones} st`;
+    document.querySelectorAll('.transpose-preset-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.semitones) === semitones);
+    });
+    
+    // Ensure content script is loaded
+    await this.ensureContentScript();
+    
+    // Send to content script
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && tab.id) {
+      chrome.tabs.sendMessage(tab.id, { type: 'SET_TRANSPOSE', semitones }, () => void chrome.runtime.lastError);
     }
   }
 

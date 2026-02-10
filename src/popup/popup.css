@@ -92,6 +92,20 @@ body {
 .btn-detect:hover, .btn-tap:hover { border-color: #FF9800; color: #FF9800; }
 .btn-tap.active { background: #FF9800; border-color: #FF9800; color: white; }
 
+.transpose-section { background: var(--bg-secondary); border-radius: var(--radius); padding: 12px; }
+.transpose-value { font-size: 14px; color: #E040FB; font-weight: 600; }
+.transpose-controls { display: flex; gap: 6px; align-items: center; margin: 8px 0; }
+.btn-transpose { width: 36px; height: 36px; padding: 0; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 18px; cursor: pointer; }
+.btn-transpose:hover { border-color: #E040FB; color: #E040FB; }
+.transpose-display { flex: 1; text-align: center; }
+.transpose-semitones { font-size: 16px; font-weight: 600; color: #E040FB; }
+.btn-transpose-reset { padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+.btn-transpose-reset:hover { border-color: #E040FB; color: #E040FB; }
+.transpose-presets { display: flex; gap: 4px; }
+.transpose-preset-btn { flex: 1; padding: 6px 4px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); font-size: 11px; cursor: pointer; }
+.transpose-preset-btn:hover { border-color: #E040FB; color: var(--text-primary); }
+.transpose-preset-btn.active { background: #E040FB; border-color: #E040FB; color: white; }
+
 .features-section { background: var(--bg-secondary); border-radius: var(--radius); padding: 16px; }
 .features-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .feature-item { display: flex; align-items: center; gap: 8px; padding: 10px; background: var(--bg-tertiary); border-radius: 4px; font-size: 12px; }

@@ -86,4 +86,17 @@
 .cs-metronome-actions button:hover { background: rgba(255, 152, 0, 0.2); border-color: #FF9800; color: #fff; }
 .cs-metronome-actions button.active { background: #FF9800; border-color: #FF9800; color: #fff; }
 
+/* Transpose */
+.cs-transpose-control { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+.cs-transpose-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.cs-transpose-label { font-size: 12px; color: #888; }
+.cs-transpose-display { font-size: 12px; color: #E040FB; font-weight: 600; }
+.cs-transpose-row { display: flex; gap: 6px; align-items: center; }
+.cs-transpose-down, .cs-transpose-up { width: 32px; height: 32px; padding: 0; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #888; font-size: 16px; cursor: pointer; }
+.cs-transpose-down:hover, .cs-transpose-up:hover { background: rgba(224, 64, 251, 0.2); border-color: #E040FB; color: #fff; }
+.cs-transpose-presets { display: flex; gap: 4px; flex: 1; }
+.cs-transpose-presets button { flex: 1; padding: 6px 4px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; color: #888; font-size: 11px; cursor: pointer; }
+.cs-transpose-presets button:hover { background: rgba(224, 64, 251, 0.2); border-color: #E040FB; color: #fff; }
+.cs-transpose-presets button.active { background: #E040FB; border-color: #E040FB; color: #fff; }
+
 

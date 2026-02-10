@@ -67,6 +67,30 @@
       </div>
     </section>
 
+    <section class="transpose-section">
+      <div class="section-header">
+        <span class="section-title">Transpose / Pitch</span>
+        <span class="transpose-value" id="transposeValue">0</span>
+      </div>
+      <div class="transpose-controls">
+        <button class="btn btn-transpose" id="transposeDownBtn">−</button>
+        <div class="transpose-display">
+          <span class="transpose-semitones" id="transposeSemitones">0 st</span>
+        </div>
+        <button class="btn btn-transpose" id="transposeUpBtn">+</button>
+        <button class="btn btn-transpose-reset" id="transposeResetBtn">Reset</button>
+      </div>
+      <div class="transpose-presets">
+        <button class="transpose-preset-btn" data-semitones="-5">−5</button>
+        <button class="transpose-preset-btn" data-semitones="-3">−3</button>
+        <button class="transpose-preset-btn" data-semitones="-1">−1</button>
+        <button class="transpose-preset-btn active" data-semitones="0">0</button>
+        <button class="transpose-preset-btn" data-semitones="1">+1</button>
+        <button class="transpose-preset-btn" data-semitones="3">+3</button>
+        <button class="transpose-preset-btn" data-semitones="5">+5</button>
+      </div>
+    </section>
+
     <section class="chord-section">
       <div class="section-header">
         <span class="section-title">Chord Detection</span>
