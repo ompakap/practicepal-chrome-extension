@@ -111,7 +111,7 @@ class ChordSensePopup {
     
     document.getElementById('helpLink').addEventListener('click', (e) => {
       e.preventDefault();
-      chrome.tabs.create({ url: 'https://chordsense.app/help' });
+      chrome.tabs.create({ url: 'https://github.com/ompakap/practicepal-chrome-extension/issues' });
     });
   }
 
