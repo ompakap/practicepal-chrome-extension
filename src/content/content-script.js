@@ -366,9 +366,8 @@ class ChordSenseOverlay {
     if (this.pitchAudioContext && this.pitchSourceMedia === media) {
       if (this.pitchShifterNode) {
         // Already have a shifter — just update the pitch
-        this.pitchShifterNode.parameters.get('pitchFactor').setValueAtTime(
-          pitchFactor, this.pitchAudioContext.currentTime
-        );
+        this.pitchShifterNode.parameters.get('pitchFactor').value = pitchFactor;
+        console.log('PracticePal: Updated pitchFactor to', pitchFactor);
       } else {
         // Source exists but shifter was bypassed — re-insert it
         await this.insertPitchShifter(pitchFactor);
@@ -419,13 +418,20 @@ class ChordSenseOverlay {
     this.pitchShifterNode = new AudioWorkletNode(
       this.pitchAudioContext, 'pitch-shifter-processor'
     );
-    this.pitchShifterNode.parameters.get('pitchFactor').setValueAtTime(
-      pitchFactor, this.pitchAudioContext.currentTime
-    );
+
+    // Error handling — detect if worklet fails silently
+    this.pitchShifterNode.onprocessorerror = (e) => {
+      console.error('PracticePal: Pitch shifter processor error', e);
+    };
+
+    // Set pitch factor via .value (more reliable than setValueAtTime for immediate changes)
+    this.pitchShifterNode.parameters.get('pitchFactor').value = pitchFactor;
 
     // Connect: source → pitch shifter → destination
     this.pitchSourceNode.connect(this.pitchShifterNode);
     this.pitchShifterNode.connect(this.pitchAudioContext.destination);
+
+    console.log('PracticePal: Pitch shifter connected, pitchFactor =', pitchFactor);
   }
 
   disconnectPitchShift() {
