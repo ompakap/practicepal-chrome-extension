@@ -1,7 +1,5 @@
-// Pitch shifter — two sweeping delay taps with crossfade
-// Each tap reads from the buffer at a rate = pitchFactor, creating the pitch shift.
-// When a tap's sweep reaches its end, it resets — the crossfade masks the reset.
-// sin²/cos² complementary windows ensure the sum is always 1.
+// Pitch shifter — 2 Hann-windowed grains, large grain for tonal clarity
+// Proven 2-grain approach with bigger grains to reduce "radio" artifacts.
 
 class PitchShifterProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -17,34 +15,41 @@ class PitchShifterProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
 
-    // Power-of-2 buffer for efficient wrapping
-    this.N = 65536;
+    this.N = 131072;
     this.mask = this.N - 1;
     this.buf = new Float32Array(this.N);
-    this.wp = 0; // write pointer (integer, always advances by 1)
+    this.wp = 0;
 
-    // Two read pointers (float — advance at pitchFactor rate)
-    // Start behind write pointer by grainLen
-    this.grainLen = 4096;
-    this.rp = new Float64Array(2);
-    this.grainPhase = new Float64Array(2); // 0..grainLen
-    this.rp[0] = -this.grainLen;
-    this.rp[1] = -this.grainLen;
-    this.grainPhase[0] = 0;
-    this.grainPhase[1] = this.grainLen / 2; // offset by half for crossfade
+    this.grainLen = 8192; // ~170ms — larger grains for tonal clarity
+    this.halfGrain = this.grainLen >> 1;
 
-    this.samplesWritten = 0;
-    this.started = false;
+    // Pre-compute Hann window
+    this.win = new Float32Array(this.grainLen);
+    for (let i = 0; i < this.grainLen; i++) {
+      this.win[i] = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * i / this.grainLen));
+    }
+
+    // Two grains offset by half a grain
+    this.phase0 = 0;
+    this.phase1 = this.halfGrain;
+    this.rp0 = 0.0;
+    this.rp1 = 0.0;
+    this.needsInit = true;
   }
 
   process(inputs, outputs, parameters) {
     const input = inputs[0];
     const output = outputs[0];
-    if (!input || !input[0] || !output || !output[0]) return true;
+    if (!input?.[0] || !output?.[0]) return true;
 
     const pitch = parameters.pitchFactor[0];
-    const inData = input[0];
-    const n = inData.length;
+    const inp = input[0];
+    const n = inp.length;
+
+    // Write input to circular buffer first
+    for (let i = 0; i < n; i++) {
+      this.buf[(this.wp + i) & this.mask] = inp[i];
+    }
 
     // Passthrough when pitch = 1.0
     if (Math.abs(pitch - 1.0) < 0.0001) {
@@ -52,79 +57,61 @@ class PitchShifterProcessor extends AudioWorkletProcessor {
         const src = ch < input.length ? input[ch] : input[0];
         if (src) output[ch].set(src);
       }
-      // Still write to buffer so we're ready when pitch changes
-      for (let i = 0; i < n; i++) {
-        this.buf[(this.wp + i) & this.mask] = inData[i];
-      }
       this.wp = (this.wp + n) & this.mask;
-      this.samplesWritten += n;
+      this.needsInit = true; // re-init grains when pitch changes back
       return true;
     }
 
-    // Write input into circular buffer (mono — take first channel)
-    for (let i = 0; i < n; i++) {
-      this.buf[(this.wp + i) & this.mask] = inData[i];
+    // Initialize/re-initialize grain read pointers
+    if (this.needsInit) {
+      // Place both read pointers behind write pointer
+      this.rp0 = this.wp - this.grainLen;
+      this.rp1 = this.wp - this.grainLen;
+      this.phase0 = 0;
+      this.phase1 = this.halfGrain;
+      this.needsInit = false;
     }
 
-    // Wait for buffer to fill before starting output
-    if (!this.started) {
-      if (this.samplesWritten + n >= this.grainLen * 2) {
-        this.started = true;
-        // Initialize read pointers behind write pointer
-        const startWp = this.wp + n;
-        this.rp[0] = startWp - this.grainLen * 2;
-        this.rp[1] = startWp - this.grainLen * 2;
-        this.grainPhase[0] = 0;
-        this.grainPhase[1] = this.grainLen / 2;
-      } else {
-        this.samplesWritten += n;
-        this.wp = (this.wp + n) & this.mask;
-        for (let ch = 0; ch < output.length; ch++) output[ch].fill(0);
-        return true;
+    const out = output[0];
+    for (let i = 0; i < n; i++) {
+      // Window values
+      const w0 = this.win[this.phase0];
+      const w1 = this.win[this.phase1];
+
+      // Read with linear interpolation — grain 0
+      const floor0 = Math.floor(this.rp0);
+      const frac0 = this.rp0 - floor0;
+      const s0 = this.buf[floor0 & this.mask] * (1 - frac0)
+               + this.buf[(floor0 + 1) & this.mask] * frac0;
+
+      // Read with linear interpolation — grain 1
+      const floor1 = Math.floor(this.rp1);
+      const frac1 = this.rp1 - floor1;
+      const s1 = this.buf[floor1 & this.mask] * (1 - frac1)
+               + this.buf[(floor1 + 1) & this.mask] * frac1;
+
+      out[i] = s0 * w0 + s1 * w1;
+
+      // Advance read pointers at pitch rate (this creates pitch shift)
+      this.rp0 += pitch;
+      this.rp1 += pitch;
+
+      // Advance grain phases at normal rate
+      this.phase0 = (this.phase0 + 1) % this.grainLen;
+      this.phase1 = (this.phase1 + 1) % this.grainLen;
+
+      // Reset grain when it completes — sync read pointer to near write head
+      if (this.phase0 === 0) {
+        this.rp0 = this.wp + i - this.grainLen;
+      }
+      if (this.phase1 === 0) {
+        this.rp1 = this.wp + i - this.grainLen;
       }
     }
 
-    this.samplesWritten += n;
-
-    // Generate output
-    const outData = output[0];
-    for (let i = 0; i < n; i++) {
-      let sample = 0.0;
-
-      for (let t = 0; t < 2; t++) {
-        // Hann window based on grain phase (0 at start/end, 1 in middle)
-        const phase01 = this.grainPhase[t] / this.grainLen;
-        const w = 0.5 * (1.0 - Math.cos(2.0 * Math.PI * phase01));
-
-        // Read from buffer with linear interpolation
-        const rpFloor = Math.floor(this.rp[t]);
-        const frac = this.rp[t] - rpFloor;
-        const i0 = rpFloor & this.mask;
-        const i1 = (rpFloor + 1) & this.mask;
-        const s = this.buf[i0] + frac * (this.buf[i1] - this.buf[i0]);
-
-        sample += s * w;
-
-        // Advance read pointer at pitch rate (this creates the pitch shift)
-        this.rp[t] += pitch;
-
-        // Advance grain phase
-        this.grainPhase[t] += 1;
-
-        // When grain completes, reset read pointer near write pointer
-        if (this.grainPhase[t] >= this.grainLen) {
-          this.grainPhase[t] = 0;
-          // Place read pointer behind current write position
-          this.rp[t] = (this.wp + i) - this.grainLen;
-        }
-      }
-
-      outData[i] = sample;
-    }
-
-    // Copy mono output to all channels
+    // Copy to other channels
     for (let ch = 1; ch < output.length; ch++) {
-      output[ch].set(outData);
+      output[ch].set(out);
     }
 
     this.wp = (this.wp + n) & this.mask;
