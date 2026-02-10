@@ -271,8 +271,7 @@ class ChordSenseOverlay {
     this.clearLoop();
     // Reset speed to 1x
     this.setSpeed(1.0);
-    // Reset transpose and disconnect pitch shift graph
-    this.disconnectPitchShift();
+    // Reset transpose (bypass pitch shifter, keep audio graph alive)
     this.setTranspose(0);
     this.overlay.querySelectorAll('.cs-speed-presets button').forEach(b => b.classList.remove('active'));
     this.overlay.querySelector('.cs-speed-presets button[data-speed="1"]')?.classList.add('active');
@@ -346,58 +345,87 @@ class ChordSenseOverlay {
   }
 
   async applyPitchShift(media, semitones) {
+    const pitchFactor = Math.pow(2, semitones / 12);
+
     if (semitones === 0) {
-      // Reset: disconnect the pitch shift graph, restore direct output
-      this.disconnectPitchShift();
+      // Bypass: route source directly to destination (no pitch shift)
+      if (this.pitchSourceNode && this.pitchSourceMedia === media) {
+        if (this.pitchShifterNode) {
+          this.pitchSourceNode.disconnect();
+          this.pitchShifterNode.disconnect();
+          this.pitchSourceNode.connect(this.pitchAudioContext.destination);
+          this.pitchShifterNode = null;
+        }
+      }
       media.preservesPitch = true;
       media.playbackRate = this.currentSpeed;
       return;
     }
 
-    const pitchFactor = Math.pow(2, semitones / 12);
-
-    // If pitch graph already set up for this media, just update the parameter
-    if (this.pitchShifterNode && this.pitchSourceMedia === media) {
-      this.pitchShifterNode.parameters.get('pitchFactor').setValueAtTime(
-        pitchFactor, this.pitchAudioContext.currentTime
-      );
+    // If audio graph already set up for this media, just update the parameter
+    if (this.pitchAudioContext && this.pitchSourceMedia === media) {
+      if (this.pitchShifterNode) {
+        // Already have a shifter — just update the pitch
+        this.pitchShifterNode.parameters.get('pitchFactor').setValueAtTime(
+          pitchFactor, this.pitchAudioContext.currentTime
+        );
+      } else {
+        // Source exists but shifter was bypassed — re-insert it
+        await this.insertPitchShifter(pitchFactor);
+      }
       return;
     }
 
-    // Disconnect any previous pitch graph
-    this.disconnectPitchShift();
-
+    // First time setup — capture the media element
     try {
-      // Create AudioContext and route media through pitch shifter
+      // Create AudioContext
       this.pitchAudioContext = new AudioContext();
-      
+
+      // Resume if suspended (autoplay policy)
+      if (this.pitchAudioContext.state === 'suspended') {
+        await this.pitchAudioContext.resume();
+      }
+
       // Load the pitch shifter worklet
       const workletUrl = chrome.runtime.getURL('src/audio/pitch-shifter-worklet.js');
       await this.pitchAudioContext.audioWorklet.addModule(workletUrl);
 
-      // Create source from media element
+      // Create source from media element (can only be done ONCE per element)
       this.pitchSourceNode = this.pitchAudioContext.createMediaElementSource(media);
       this.pitchSourceMedia = media;
 
-      // Create pitch shifter node
-      this.pitchShifterNode = new AudioWorkletNode(
-        this.pitchAudioContext, 'pitch-shifter-processor'
-      );
-      this.pitchShifterNode.parameters.get('pitchFactor').setValueAtTime(
-        pitchFactor, this.pitchAudioContext.currentTime
-      );
+      // Insert the pitch shifter
+      await this.insertPitchShifter(pitchFactor);
 
-      // Connect: media → pitch shifter → speakers
-      this.pitchSourceNode.connect(this.pitchShifterNode);
-      this.pitchShifterNode.connect(this.pitchAudioContext.destination);
-
-      // Keep playbackRate controlling speed only (preservesPitch stays true)
+      // Keep playbackRate controlling speed only
       media.preservesPitch = true;
       media.playbackRate = this.currentSpeed;
     } catch (err) {
       console.warn('PracticePal: Failed to set up pitch shifter', err);
-      this.disconnectPitchShift();
+      // Fallback: if createMediaElementSource fails (element already captured),
+      // try to reuse the existing audio graph
+      if (err.name === 'InvalidStateError' && this.pitchAudioContext) {
+        this.pitchAudioContext.close().catch(() => {});
+        this.pitchAudioContext = null;
+      }
     }
+  }
+
+  async insertPitchShifter(pitchFactor) {
+    // Disconnect source from wherever it's connected
+    this.pitchSourceNode.disconnect();
+
+    // Create pitch shifter node
+    this.pitchShifterNode = new AudioWorkletNode(
+      this.pitchAudioContext, 'pitch-shifter-processor'
+    );
+    this.pitchShifterNode.parameters.get('pitchFactor').setValueAtTime(
+      pitchFactor, this.pitchAudioContext.currentTime
+    );
+
+    // Connect: source → pitch shifter → destination
+    this.pitchSourceNode.connect(this.pitchShifterNode);
+    this.pitchShifterNode.connect(this.pitchAudioContext.destination);
   }
 
   disconnectPitchShift() {
@@ -406,14 +434,16 @@ class ChordSenseOverlay {
       this.pitchShifterNode = null;
     }
     if (this.pitchSourceNode) {
-      this.pitchSourceNode.disconnect();
-      this.pitchSourceNode = null;
+      // Don't disconnect source — just route to destination directly
+      try {
+        this.pitchSourceNode.disconnect();
+        if (this.pitchAudioContext) {
+          this.pitchSourceNode.connect(this.pitchAudioContext.destination);
+        }
+      } catch (e) { /* already disconnected */ }
     }
-    if (this.pitchAudioContext) {
-      this.pitchAudioContext.close().catch(() => {});
-      this.pitchAudioContext = null;
-    }
-    this.pitchSourceMedia = null;
+    // Do NOT close the AudioContext — the MediaElementSource is permanently bound to it.
+    // Closing it would make the media element silent permanently.
   }
 
   setLoopStart() {
