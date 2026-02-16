@@ -125,6 +125,10 @@ class ChordSenseOverlay {
               <div class="cs-confidence-bar"></div>
             </div>
           </div>
+
+          <div class="cs-guitar-chords-section">
+            <button class="cs-open-chord-viewer" title="Open Guitar Chord Reference">🎸 Guitar Chords</button>
+          </div>
         </div>
       </div>
     `;
@@ -137,6 +141,12 @@ class ChordSenseOverlay {
     this.overlay.querySelector('.cs-close').addEventListener('click', () => this.hide());
     this.overlay.querySelector('.cs-restart').addEventListener('click', () => this.restartDetection());
     this.overlay.querySelector('.cs-chord-toggle').addEventListener('click', () => this.toggleChordDetection());
+
+    // Guitar chord viewer
+    this.overlay.querySelector('.cs-open-chord-viewer').addEventListener('click', () => {
+      if (!this.chordViewer) this.chordViewer = new ChordViewer();
+      this.chordViewer.toggle();
+    });
 
     const speedSlider = this.overlay.querySelector('.cs-speed-slider');
     speedSlider.addEventListener('input', (e) => this.setSpeed(parseFloat(e.target.value)));
@@ -240,6 +250,11 @@ class ChordSenseOverlay {
         case 'SET_TRANSPOSE':
           this.setTranspose(message.semitones);
           break;
+        case 'OPEN_CHORD_VIEWER':
+          if (!this.chordViewer) this.chordViewer = new ChordViewer();
+          this.chordViewer.show();
+          sendResponse({ success: true });
+          return true;
       }
     });
   }

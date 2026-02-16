@@ -72,6 +72,7 @@ class ChordSensePopup {
   setupEventListeners() {
     document.getElementById('toggleDetection').addEventListener('click', () => this.toggleDetection());
     document.getElementById('showOverlay').addEventListener('click', () => this.showOverlay());
+    document.getElementById('showChordViewer').addEventListener('click', () => this.showChordViewer());
 
     const speedSlider = document.getElementById('speedSlider');
     speedSlider.addEventListener('input', (e) => this.setSpeed(parseFloat(e.target.value)));
@@ -531,6 +532,7 @@ class ChordSensePopup {
           }
         });
       });
+      window.close();
     } catch (error) {
       // Content script not loaded, inject it first
       try {
@@ -547,6 +549,49 @@ class ChordSensePopup {
           chrome.tabs.sendMessage(tab.id, { type: 'SHOW_OVERLAY' }, () => {
             void chrome.runtime.lastError;
           });
+          window.close();
+        }, 100);
+      } catch (injectError) {
+        console.warn('Could not inject content script:', injectError);
+      }
+    }
+  }
+
+  async showChordViewer() {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const restrictedPatterns = [
+      'chrome://', 'chrome-extension://', 'chrome.google.com/webstore',
+      'chromewebstore.google.com', 'accounts.google.com', 'about:', 'edge://', 'devtools://'
+    ];
+    if (!tab || !tab.url || restrictedPatterns.some(p => tab.url.startsWith(p) || tab.url.includes(p))) {
+      console.warn('Cannot show chord viewer on this page.');
+      return;
+    }
+
+    try {
+      await new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tab.id, { type: 'OPEN_CHORD_VIEWER' }, (response) => {
+          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+          else resolve(response);
+        });
+      });
+    } catch (error) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: [
+            'src/chords/chord-data.js',
+            'src/chords/chord-audio.js',
+            'src/chords/chord-viewer.js',
+            'src/content/content-script.js'
+          ]
+        });
+        await chrome.scripting.insertCSS({
+          target: { tabId: tab.id },
+          files: ['src/styles/content.css', 'src/styles/chord-viewer.css']
+        });
+        setTimeout(() => {
+          chrome.tabs.sendMessage(tab.id, { type: 'OPEN_CHORD_VIEWER' }, () => void chrome.runtime.lastError);
         }, 100);
       } catch (injectError) {
         console.warn('Could not inject content script:', injectError);

@@ -36,8 +36,13 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["src/content/content-script.js"],
-      "css": ["src/styles/content.css"]
+      "js": [
+        "src/chords/chord-data.js",
+        "src/chords/chord-audio.js",
+        "src/chords/chord-viewer.js",
+        "src/content/content-script.js"
+      ],
+      "css": ["src/styles/content.css", "src/styles/chord-viewer.css"]
     }
   ],
   "web_accessible_resources": [
