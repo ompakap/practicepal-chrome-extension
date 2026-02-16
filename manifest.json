@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PracticePal - Music Practice Tools",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Slow down music, loop sections, and practice songs at your own pace. Perfect for musicians learning by ear!",
   "permissions": [
     "activeTab",
